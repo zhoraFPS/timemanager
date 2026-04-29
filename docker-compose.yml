@@ -1,0 +1,126 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-zeitspiel}
+      POSTGRES_USER: ${POSTGRES_USER:-zeitspiel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      TZ: Europe/Berlin
+      PGTZ: Europe/Berlin
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Host-bind-mount for daily pg_dump output. Map to a backup target on host.
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zeitspiel} -d ${POSTGRES_DB:-zeitspiel}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Not publishing the port to the host: app reaches db via the internal
+    # network, and exposing 5432 externally is one of the top self-host risks.
+    # Uncomment for development only.
+    # ports:
+    #   - "5432:5432"
+
+  api:
+    build:
+      context: apps/api
+      dockerfile: Dockerfile
+    image: vfl-zeitspiel-api:latest
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-zeitspiel}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-zeitspiel}
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?set NEXTAUTH_SECRET in .env}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?set NEXTAUTH_URL in .env}
+      CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
+      TZ: Europe/Berlin
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      AUTH_MICROSOFT_ENTRA_ID_ID: ${AUTH_MICROSOFT_ENTRA_ID_ID:-}
+      AUTH_MICROSOFT_ENTRA_ID_SECRET: ${AUTH_MICROSOFT_ENTRA_ID_SECRET:-}
+      AUTH_MICROSOFT_ENTRA_ID_ISSUER: ${AUTH_MICROSOFT_ENTRA_ID_ISSUER:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+    ports:
+      - "${API_PORT:-3001}:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    tmpfs:
+      - /tmp
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vfl-zeitspiel-web:latest
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:3001
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?set NEXTAUTH_SECRET in .env}
+      AUTH_MICROSOFT_ENTRA_ID_ID: ${AUTH_MICROSOFT_ENTRA_ID_ID:-}
+      AUTH_MICROSOFT_ENTRA_ID_SECRET: ${AUTH_MICROSOFT_ENTRA_ID_SECRET:-}
+      AUTH_MICROSOFT_ENTRA_ID_ISSUER: ${AUTH_MICROSOFT_ENTRA_ID_ISSUER:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+      TZ: Europe/Berlin
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      - api
+    tmpfs:
+      - /tmp
+
+  # Optional: Caddy reverse-proxy with automatic Let's Encrypt. Comment out if
+  # you already have a proxy (Traefik, nginx, etc.) in front via Portainer.
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    profiles: [proxy]  # enable with: docker compose --profile proxy up -d
+
+  # Cron job for nightly pg_dump. Runs inside the Postgres network, writes to
+  # /backups which is mounted to ./backups on the host.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-zeitspiel}
+      POSTGRES_DB: ${POSTGRES_DB:-zeitspiel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Europe/Berlin
+      # Keep 30 daily + 12 monthly snapshots
+      BACKUP_RETENTION_DAYS: "30"
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/usr/local/bin/backup.sh:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    # simple cron: once a day at 03:00, plus a fresh snapshot on container start
+    command: |
+      "crond -f -L /dev/stdout &
+       echo '0 3 * * * /usr/local/bin/backup.sh' | crontab -
+       /usr/local/bin/backup.sh || true
+       wait"
+    profiles: [backup]  # enable with: docker compose --profile backup up -d
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

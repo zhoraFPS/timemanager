@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "build": {
+    "env": {
+      "TZ": "Europe/Berlin"
+    }
+  },
+  "functions": {
+    "src/app/**/*.ts": {
+      "includeFiles": ""
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/system/auto-clockout",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
