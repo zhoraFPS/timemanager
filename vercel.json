@@ -10,10 +10,5 @@
       "includeFiles": ""
     }
   },
-  "crons": [
-    {
-      "path": "/api/system/auto-clockout",
-      "schedule": "0 * * * *"
-    }
-  ]
+  "crons": []
 }

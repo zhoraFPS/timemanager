@@ -48,7 +48,6 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
-  output: "standalone",
   reactCompiler: true,
   async headers() {
     return [
