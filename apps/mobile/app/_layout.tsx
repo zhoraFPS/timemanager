@@ -1,6 +1,6 @@
 import "../global.css";
 import { useEffect, useRef, useState } from "react";
-import { Slot, useRouter, useSegments } from "expo-router";
+import { Slot, useRouter, useRootNavigationState } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -15,12 +15,16 @@ const isExpoGo = Constants.appOwnership === "expo";
 
 function RootLayoutInner() {
   const { colors, isDark } = useTheme();
+  // target is null while auth is still loading, then set to the route to open
+  const [target, setTarget] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const didInit = useRef(false);
+  const didNavigate = useRef(false);
   const router = useRouter();
-  const segments = useSegments();
+  // navState?.key is defined only once Expo Router's navigator has mounted
+  const navState = useRootNavigationState();
 
-  // Load stored auth once
+  // Phase 1 — load stored auth (doesn't need the router to be ready yet)
   useEffect(() => {
     if (didInit.current) return;
     didInit.current = true;
@@ -29,45 +33,51 @@ function RootLayoutInner() {
       try {
         const hasAuth = await useAuthStore.getState().loadStoredAuth();
         const { biometrieEnabled: bio, pushEnabled } = useAuthStore.getState();
-        // Re-register push token silently if user had it enabled
+
         if (hasAuth && pushEnabled) {
           registerForPushNotifications().catch(() => {});
         }
 
-        // After refresh succeeds, verify server-side password-change flag so
-        // admin-forced changes take effect on next app launch, not next login.
         let mustChange = false;
         if (hasAuth) {
           try {
             const me = await getProfile();
             mustChange = Boolean(me?.mustChangePassword);
           } catch {
-            /* network error — skip guard, let normal flow run */
+            /* network error — skip forced-change guard */
           }
         }
 
-        setIsReady(true);
-
-        // Small delay to ensure router is mounted
-        setTimeout(() => {
-          if (!hasAuth) {
-            router.replace("/login");
-          } else if (mustChange) {
-            router.replace("/passwort-aendern?forced=1");
-          } else if (bio && !isExpoGo) {
-            router.replace("/biometric");
-          } else {
-            router.replace("/(tabs)");
-          }
-        }, 50);
+        setTarget(
+          !hasAuth
+            ? "/login"
+            : mustChange
+            ? "/passwort-aendern?forced=1"
+            : bio && !isExpoGo
+            ? "/biometric"
+            : "/(tabs)"
+        );
       } catch (e) {
         console.error("[INIT] error:", e);
-        setIsReady(true);
-        setTimeout(() => router.replace("/login"), 50);
+        setTarget("/login");
       }
     }
     init();
   }, []);
+
+  // Phase 2 — navigate once BOTH auth AND the router are ready
+  // navState?.key is the signal that Expo Router's navigator has mounted
+  useEffect(() => {
+    if (!target || !navState?.key || didNavigate.current) return;
+    didNavigate.current = true;
+
+    router.replace(target as Parameters<typeof router.replace>[0]);
+
+    // Show the slot one frame after the replace so the navigator has time
+    // to process the new route before we unmount the splash spinner
+    const t = setTimeout(() => setIsReady(true), 100);
+    return () => clearTimeout(t);
+  }, [target, navState?.key]);
 
   if (!isReady) {
     return (
