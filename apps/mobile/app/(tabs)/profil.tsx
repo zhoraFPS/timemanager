@@ -32,6 +32,7 @@ import {
   registerForPushNotifications,
   unregisterPushToken,
   getPushPermissionStatus,
+  PushTokenError,
 } from "@/lib/notifications";
 import { useTheme } from "@/lib/theme";
 import { AuroraBackground } from "@/components/ui/background/aurora-background";
@@ -115,15 +116,29 @@ export default function ProfilScreen() {
 
   async function togglePush(value: boolean) {
     if (value) {
-      const token = await registerForPushNotifications();
-      if (!token) {
-        Alert.alert(
-          "Nicht möglich",
-          "Push-Benachrichtigungen konnten nicht aktiviert werden. Bitte erlaube Benachrichtigungen in den Geräte-Einstellungen."
-        );
-        return;
+      try {
+        const token = await registerForPushNotifications();
+        if (!token) {
+          // null = OS permission denied
+          Alert.alert(
+            "Berechtigung fehlt",
+            "Bitte erlaube Benachrichtigungen für diese App in den Geräte-Einstellungen."
+          );
+          return;
+        }
+        await setPushEnabled(true);
+      } catch (err) {
+        if (err instanceof PushTokenError) {
+          // Token retrieval failed — most likely FCM not configured
+          Alert.alert(
+            "Push nicht verfügbar",
+            "Der Benachrichtigungs-Token konnte nicht abgerufen werden. " +
+            "Bitte wende dich an den Administrator (FCM-Konfiguration erforderlich)."
+          );
+        } else {
+          Alert.alert("Fehler", "Push-Benachrichtigungen konnten nicht aktiviert werden.");
+        }
       }
-      await setPushEnabled(true);
     } else {
       await unregisterPushToken();
       await setPushEnabled(false);

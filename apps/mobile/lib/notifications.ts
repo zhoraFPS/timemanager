@@ -7,7 +7,6 @@ import { registerPushToken } from "./api";
 import { useAuthStore } from "./store";
 
 // Push notifications require a real physical device (not an emulator/simulator).
-// Avoid relying on Constants.appOwnership — it can be unreliable in EAS builds.
 const pushSupported = Device.isDevice;
 
 // Show alerts even when the app is in foreground
@@ -25,7 +24,7 @@ if (pushSupported) {
 
 /** Returns true if the OS has granted push notification permission. */
 export async function getPushPermissionStatus(): Promise<boolean> {
-  if (!pushSupported || !Device.isDevice) return false;
+  if (!pushSupported) return false;
   try {
     const { status } = await Notifications.getPermissionsAsync();
     return status === "granted";
@@ -35,18 +34,27 @@ export async function getPushPermissionStatus(): Promise<boolean> {
 }
 
 /**
- * Requests permission, fetches the Expo push token, and registers it
- * with the backend for the current device.
+ * Thrown when the OS permission is granted but the Expo push token cannot be
+ * retrieved — almost always because FCM v1 credentials are missing in EAS.
+ */
+export class PushTokenError extends Error {
+  constructor(cause: unknown) {
+    const msg = cause instanceof Error ? cause.message : String(cause);
+    super(msg);
+    this.name = "PushTokenError";
+  }
+}
+
+/**
+ * Requests permission and fetches the Expo push token.
  *
- * Returns the token string on success, null if permission was denied or
- * the device/project is not configured for push.
+ * Returns null  → OS permission denied (user must enable in device settings)
+ * Returns token → success
+ * Throws PushTokenError → permission granted but token retrieval failed
+ *   (most likely cause: FCM v1 credentials not configured in EAS)
  */
 export async function registerForPushNotifications(): Promise<string | null> {
-  if (!pushSupported) return null;
-  if (!Device.isDevice) {
-    console.warn("[Push] Push notifications only work on real devices.");
-    return null;
-  }
+  if (!pushSupported || !Device.isDevice) return null;
 
   // Request OS permission
   const { status: existing } = await Notifications.getPermissionsAsync();
@@ -55,6 +63,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
+  // Return null = permission denied → caller shows "enable in settings"
   if (finalStatus !== "granted") return null;
 
   // Android notification channel
@@ -67,7 +76,6 @@ export async function registerForPushNotifications(): Promise<string | null> {
     });
   }
 
-  // Resolve projectId: EAS > Constants fallback
   const projectId: string | undefined =
     Constants.expoConfig?.extra?.eas?.projectId ??
     (Constants as any).easConfig?.projectId;
@@ -79,8 +87,10 @@ export async function registerForPushNotifications(): Promise<string | null> {
     );
     pushToken = tokenData.data;
   } catch (err) {
+    // Log full error for debugging (visible in EAS build logs / Logcat)
     console.error("[Push] getExpoPushTokenAsync failed:", err);
-    return null;
+    // Re-throw so the caller can show an accurate error message
+    throw new PushTokenError(err);
   }
 
   // Register token with backend — include platform, model and OS version
@@ -107,7 +117,7 @@ export async function unregisterPushToken(): Promise<void> {
   const deviceId = useAuthStore.getState().deviceId;
   if (!deviceId) return;
   try {
-    await registerPushToken(deviceId, ""); // empty string clears it on backend
+    await registerPushToken(deviceId, "");
   } catch {
     // Silent
   }
