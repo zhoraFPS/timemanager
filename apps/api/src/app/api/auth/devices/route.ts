@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   const userId = await verifyMobileToken(req);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { deviceId, pushToken, name, platform } = await req.json();
+  const { deviceId, pushToken, name, platform, model, osVersion } = await req.json();
   if (!deviceId) return NextResponse.json({ error: "deviceId erforderlich" }, { status: 400 });
 
   const lastIp =
@@ -27,8 +27,14 @@ export async function POST(req: NextRequest) {
 
   const device = await db.device.upsert({
     where: { deviceId },
-    update: { pushToken, name, lastUsed: new Date(), ...(lastIp && { lastIp }), ...(platform && { platform }) },
-    create: { userId, deviceId, pushToken, name, lastIp, platform },
+    update: {
+      pushToken, name, lastUsed: new Date(),
+      ...(lastIp && { lastIp }),
+      ...(platform && { platform }),
+      ...(model && { model }),
+      ...(osVersion && { osVersion }),
+    },
+    create: { userId, deviceId, pushToken, name, lastIp, platform, model, osVersion },
   });
 
   return NextResponse.json(device);

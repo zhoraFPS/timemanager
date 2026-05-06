@@ -200,10 +200,15 @@ export async function loginWithCredentials(
   return data as { accessToken: string; refreshToken: string; user: User };
 }
 
-export async function exchangeDeviceToken(token: string, deviceId: string) {
+export async function exchangeDeviceToken(
+  token: string,
+  deviceId: string,
+  deviceMeta?: { platform?: string; model?: string; osVersion?: string }
+) {
   const { data } = await api.post("/api/auth/device-exchange", {
     token,
     deviceId,
+    ...deviceMeta,
   });
   return data as { accessToken: string; refreshToken: string; user: User };
 }
@@ -213,8 +218,14 @@ export async function refreshAccessToken(refreshToken: string) {
   return data as { accessToken: string; refreshToken: string };
 }
 
-export async function registerPushToken(deviceId: string, pushToken: string, platform?: string) {
-  await api.post("/api/auth/devices", { deviceId, pushToken, platform });
+export async function registerPushToken(
+  deviceId: string,
+  pushToken: string,
+  platform?: string,
+  model?: string,
+  osVersion?: string
+) {
+  await api.post("/api/auth/devices", { deviceId, pushToken, platform, model, osVersion });
 }
 
 /** Withdraw a PENDING request — no approval needed, instant cancellation. */

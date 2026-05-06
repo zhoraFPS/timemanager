@@ -11,6 +11,8 @@ import { useRouter } from "expo-router";
 import { useAuthStore } from "@/lib/store";
 import { exchangeDeviceToken } from "@/lib/api";
 import * as Crypto from "expo-crypto";
+import * as Device from "expo-device";
+import { Platform } from "react-native";
 
 export default function QRScanScreen() {
   const [scanned, setScanned] = useState(false);
@@ -53,7 +55,11 @@ export default function QRScanScreen() {
         await setDeviceId(did);
       }
 
-      const result = await exchangeDeviceToken(data, did);
+      const result = await exchangeDeviceToken(data, did, {
+        platform: Platform.OS,
+        model: Device.modelName ?? undefined,
+        osVersion: Device.osVersion ?? undefined,
+      });
       await setAuth(result.user, result.accessToken, result.refreshToken);
       router.replace("/(tabs)");
     } catch (error: any) {

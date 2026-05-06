@@ -163,12 +163,13 @@ export default function GeraeteScreen() {
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
                         <Text style={[styles.deviceName, { color: colors.foreground }]}>
-                          {device.name ?? "Unbekanntes Geraet"}
+                          {device.model ?? device.name ?? "Unbekanntes Geraet"}
                         </Text>
                         {device.platform ? (
                           <View style={[styles.platformBadge, { backgroundColor: colors.muted }]}>
                             <Text style={{ color: colors.mutedForeground, fontSize: 10, fontWeight: "600" }}>
                               {device.platform === "ios" ? "iOS" : device.platform === "android" ? "Android" : device.platform}
+                              {device.osVersion ? ` ${device.osVersion}` : ""}
                             </Text>
                           </View>
                         ) : null}
@@ -189,6 +190,11 @@ export default function GeraeteScreen() {
                           </View>
                         ) : null}
                       </View>
+                      {device.name && device.model && device.name !== device.model ? (
+                        <Text style={[{ fontSize: 11, marginTop: 1 }, { color: colors.mutedForeground }]}>
+                          {device.name}
+                        </Text>
+                      ) : null}
                       <Text style={[styles.deviceMeta, { color: colors.mutedForeground }]}>
                         Zuletzt aktiv {formatLastUsed(device.lastUsed)}
                       </Text>

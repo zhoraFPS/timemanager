@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
       deviceId: true,
       name: true,
       platform: true,
+      model: true,
+      osVersion: true,
       lastIp: true,
       lastUsed: true,
       createdAt: true,

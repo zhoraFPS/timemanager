@@ -9,7 +9,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Smartphone, Clock, Trash2 } from "lucide-react";
+import { Smartphone, Clock, Trash2, Wifi } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { de } from "date-fns/locale";
 
@@ -17,6 +17,10 @@ interface Device {
   id: string;
   deviceId: string;
   name: string | null;
+  platform: string | null;
+  model: string | null;
+  osVersion: string | null;
+  lastIp: string | null;
   lastUsed: string;
   createdAt: string;
 }
@@ -89,15 +93,32 @@ export function DeviceList() {
                 >
                   <div className="flex items-start gap-3 min-w-0">
                     <Smartphone className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {d.name ?? "Unbenanntes Gerät"}
-                      </p>
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium truncate">
+                          {d.model ?? d.name ?? "Unbenanntes Gerät"}
+                        </p>
+                        {d.platform && (
+                          <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-muted text-muted-foreground shrink-0">
+                            {d.platform === "ios" ? "iOS" : d.platform === "android" ? "Android" : d.platform}
+                            {d.osVersion ? ` ${d.osVersion}` : ""}
+                          </span>
+                        )}
+                      </div>
+                      {d.name && d.model && d.name !== d.model && (
+                        <p className="text-[11px] text-muted-foreground/80 truncate">{d.name}</p>
+                      )}
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
+                        <Clock className="h-3 w-3 shrink-0" />
                         Zuletzt aktiv {formatDistanceToNow(new Date(d.lastUsed), { addSuffix: true, locale: de })}
                       </p>
-                      <p className="text-[11px] text-muted-foreground/70 font-mono">
+                      {d.lastIp && (
+                        <p className="text-[11px] text-muted-foreground/70 flex items-center gap-1 font-mono">
+                          <Wifi className="h-3 w-3 shrink-0" />
+                          {d.lastIp}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-muted-foreground/50">
                         Hinzugefügt: {format(new Date(d.createdAt), "dd.MM.yyyy", { locale: de })}
                       </p>
                     </div>

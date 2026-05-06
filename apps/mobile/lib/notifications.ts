@@ -83,11 +83,17 @@ export async function registerForPushNotifications(): Promise<string | null> {
     return null;
   }
 
-  // Register token with backend (include platform so the device list shows it)
+  // Register token with backend — include platform, model and OS version
   const deviceId = useAuthStore.getState().deviceId;
   if (deviceId) {
     try {
-      await registerPushToken(deviceId, pushToken, Platform.OS);
+      await registerPushToken(
+        deviceId,
+        pushToken,
+        Platform.OS,
+        Device.modelName ?? undefined,
+        Device.osVersion ?? undefined,
+      );
     } catch {
       // Silent — token stored locally, will sync next time
     }

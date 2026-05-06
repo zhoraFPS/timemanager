@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { issueTokens } from "@/lib/refresh-tokens";
 
 export async function POST(req: NextRequest) {
-  const { token, deviceId, deviceName } = await req.json();
+  const { token, deviceId, deviceName, platform, model, osVersion } = await req.json();
   if (!token || !deviceId) {
     return NextResponse.json(
       { error: "Token und deviceId erforderlich" },
@@ -40,8 +40,14 @@ export async function POST(req: NextRequest) {
 
   await db.device.upsert({
     where: { deviceId },
-    update: { userId: deviceToken.userId, name: deviceName, lastUsed: new Date(), ...(lastIp && { lastIp }) },
-    create: { userId: deviceToken.userId, deviceId, name: deviceName, lastIp },
+    update: {
+      userId: deviceToken.userId, name: deviceName, lastUsed: new Date(),
+      ...(lastIp && { lastIp }),
+      ...(platform && { platform }),
+      ...(model && { model }),
+      ...(osVersion && { osVersion }),
+    },
+    create: { userId: deviceToken.userId, deviceId, name: deviceName, lastIp, platform, model, osVersion },
   });
 
   const user = await db.user.findUnique({
