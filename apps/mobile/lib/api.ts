@@ -213,8 +213,8 @@ export async function refreshAccessToken(refreshToken: string) {
   return data as { accessToken: string; refreshToken: string };
 }
 
-export async function registerPushToken(deviceId: string, pushToken: string) {
-  await api.post("/api/auth/devices", { deviceId, pushToken });
+export async function registerPushToken(deviceId: string, pushToken: string, platform?: string) {
+  await api.post("/api/auth/devices", { deviceId, pushToken, platform });
 }
 
 /** Withdraw a PENDING request — no approval needed, instant cancellation. */

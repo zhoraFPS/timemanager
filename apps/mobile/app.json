@@ -55,7 +55,10 @@
       "expo-notifications"
     ],
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "7e405bd4-c6f3-4d64-b5e2-ff9545c66d6c"
+      }
     }
   }
 }

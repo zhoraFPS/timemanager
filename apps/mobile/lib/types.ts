@@ -21,6 +21,8 @@ export interface DeviceInfo {
   id: string;
   deviceId: string;
   name: string | null;
+  platform: string | null;
+  lastIp: string | null;
   lastUsed: string;
   createdAt: string;
 }

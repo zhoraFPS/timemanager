@@ -356,6 +356,8 @@ model Device {
   userId    String
   deviceId  String   @unique
   name      String?
+  platform  String?
+  lastIp    String?
   pushToken String?
   lastUsed  DateTime @default(now())
   createdAt DateTime @default(now())

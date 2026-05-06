@@ -33,10 +33,15 @@ export async function POST(req: NextRequest) {
       { status: 409 }
     );
   }
+  const lastIp =
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    req.headers.get("x-real-ip") ??
+    null;
+
   await db.device.upsert({
     where: { deviceId },
-    update: { userId: deviceToken.userId, name: deviceName, lastUsed: new Date() },
-    create: { userId: deviceToken.userId, deviceId, name: deviceName },
+    update: { userId: deviceToken.userId, name: deviceName, lastUsed: new Date(), ...(lastIp && { lastIp }) },
+    create: { userId: deviceToken.userId, deviceId, name: deviceName, lastIp },
   });
 
   const user = await db.user.findUnique({

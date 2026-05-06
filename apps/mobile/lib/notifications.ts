@@ -2,12 +2,13 @@ import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+
 import { registerPushToken } from "./api";
 import { useAuthStore } from "./store";
 
-// Expo Go on Android (SDK 53+) doesn't support push notifications
-const isExpoGo = Constants.appOwnership === "expo";
-const pushSupported = !isExpoGo || Platform.OS === "ios";
+// Push notifications require a real physical device (not an emulator/simulator).
+// Avoid relying on Constants.appOwnership — it can be unreliable in EAS builds.
+const pushSupported = Device.isDevice;
 
 // Show alerts even when the app is in foreground
 if (pushSupported) {
@@ -82,11 +83,11 @@ export async function registerForPushNotifications(): Promise<string | null> {
     return null;
   }
 
-  // Register token with backend
+  // Register token with backend (include platform so the device list shows it)
   const deviceId = useAuthStore.getState().deviceId;
   if (deviceId) {
     try {
-      await registerPushToken(deviceId, pushToken);
+      await registerPushToken(deviceId, pushToken, Platform.OS);
     } catch {
       // Silent — token stored locally, will sync next time
     }

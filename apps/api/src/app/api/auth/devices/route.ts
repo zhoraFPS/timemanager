@@ -6,8 +6,13 @@ export async function POST(req: NextRequest) {
   const userId = await verifyMobileToken(req);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { deviceId, pushToken, name } = await req.json();
+  const { deviceId, pushToken, name, platform } = await req.json();
   if (!deviceId) return NextResponse.json({ error: "deviceId erforderlich" }, { status: 400 });
+
+  const lastIp =
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    req.headers.get("x-real-ip") ??
+    null;
 
   // Only allow update if the deviceId either doesn't exist yet, or already
   // belongs to the authenticated user. Prevents push-token hijacking by
@@ -22,8 +27,8 @@ export async function POST(req: NextRequest) {
 
   const device = await db.device.upsert({
     where: { deviceId },
-    update: { pushToken, name, lastUsed: new Date() },
-    create: { userId, deviceId, pushToken, name },
+    update: { pushToken, name, lastUsed: new Date(), ...(lastIp && { lastIp }), ...(platform && { platform }) },
+    create: { userId, deviceId, pushToken, name, lastIp, platform },
   });
 
   return NextResponse.json(device);

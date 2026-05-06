@@ -1,0 +1,1 @@
+ALTER TABLE "Request" ADD COLUMN IF NOT EXISTS "relatedRequestId" TEXT;

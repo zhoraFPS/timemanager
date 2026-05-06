@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
-import { ChevronLeft, Smartphone, Trash2, ShieldCheck } from "lucide-react-native";
+import { ChevronLeft, Smartphone, Trash2, ShieldCheck, Wifi } from "lucide-react-native";
 
 import { useTheme } from "@/lib/theme";
 import { useAuthStore } from "@/lib/store";
@@ -161,10 +161,17 @@ export default function GeraeteScreen() {
                       <Smartphone size={18} color={colors.mutedForeground} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
                         <Text style={[styles.deviceName, { color: colors.foreground }]}>
                           {device.name ?? "Unbekanntes Geraet"}
                         </Text>
+                        {device.platform ? (
+                          <View style={[styles.platformBadge, { backgroundColor: colors.muted }]}>
+                            <Text style={{ color: colors.mutedForeground, fontSize: 10, fontWeight: "600" }}>
+                              {device.platform === "ios" ? "iOS" : device.platform === "android" ? "Android" : device.platform}
+                            </Text>
+                          </View>
+                        ) : null}
                         {isCurrent ? (
                           <View
                             style={[
@@ -185,6 +192,14 @@ export default function GeraeteScreen() {
                       <Text style={[styles.deviceMeta, { color: colors.mutedForeground }]}>
                         Zuletzt aktiv {formatLastUsed(device.lastUsed)}
                       </Text>
+                      {device.lastIp ? (
+                        <View style={styles.ipRow}>
+                          <Wifi size={10} color={colors.mutedForeground} />
+                          <Text style={[styles.ipText, { color: colors.mutedForeground }]}>
+                            {device.lastIp}
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
                     <TouchableOpacity
                       onPress={() => handleDelete(device)}
@@ -262,6 +277,21 @@ const styles = StyleSheet.create({
   deviceMeta: {
     fontSize: 11,
     marginTop: 2,
+  },
+  platformBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  ipRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 3,
+  },
+  ipText: {
+    fontSize: 11,
+    fontVariant: ["tabular-nums"],
   },
   trashButton: {
     padding: 6,

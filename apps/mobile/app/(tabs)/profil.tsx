@@ -63,11 +63,13 @@ export default function ProfilScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-      // Sync switch with real OS permission status on every focus
+      // Sync switch with real OS permission status on every focus.
+      // No dependency on pushEnabled — otherwise setPushEnabled(false) would
+      // change the callback reference and re-trigger this effect in a loop.
       getPushPermissionStatus().then((granted) => {
-        if (!granted && pushEnabled) setPushEnabled(false);
+        if (!granted) setPushEnabled(false);
       });
-    }, [pushEnabled])
+    }, [])
   );
 
   async function loadData() {

@@ -53,3 +53,5 @@ apps/mobile/dist/
 
 # docker backups (nur lokal)
 backups/
+
+.vercel

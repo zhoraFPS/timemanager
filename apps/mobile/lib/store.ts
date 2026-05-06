@@ -46,6 +46,9 @@ interface AuthState {
   setPushEnabled: (enabled: boolean) => Promise<void>;
 }
 
+// Dedup concurrent refresh calls — only one in-flight refresh at a time.
+let _refreshPromise: Promise<boolean> | null = null;
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   accessToken: null,
@@ -62,16 +65,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   refresh: async () => {
+    if (_refreshPromise) return _refreshPromise;
     const rt = get().refreshToken;
     if (!rt) return false;
-    try {
-      const { data } = await axios.post(`${API_URL}/api/auth/refresh`, { refreshToken: rt });
-      await SecureStore.setItemAsync("refreshToken", data.refreshToken);
-      set({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-      return true;
-    } catch {
-      return false;
-    }
+    _refreshPromise = (async () => {
+      try {
+        const { data } = await axios.post(`${API_URL}/api/auth/refresh`, { refreshToken: rt });
+        await SecureStore.setItemAsync("refreshToken", data.refreshToken);
+        set({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+        return true;
+      } catch {
+        return false;
+      } finally {
+        _refreshPromise = null;
+      }
+    })();
+    return _refreshPromise;
   },
 
   logout: async () => {

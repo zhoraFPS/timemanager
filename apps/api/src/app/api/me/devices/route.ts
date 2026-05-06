@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
       id: true,
       deviceId: true,
       name: true,
+      platform: true,
+      lastIp: true,
       lastUsed: true,
       createdAt: true,
     },
